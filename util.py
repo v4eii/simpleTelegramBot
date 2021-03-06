@@ -2,6 +2,8 @@ import random
 import telebot
 from telebot.types import Message
 from telegram import ParseMode
+from user import User
+from mongo_service import *
 
 unknown_sticker_set = ("CAACAgIAAxkBAAMxYDlil77mhgAB039EtvdMzGfeV6kdAAI0AwACEzmPEQ7-6IMS7E4GHgQ",
                        "CAACAgIAAxkBAAMzYDli4ePAI0LosSVz0gRCYaYwL5oAAjQDAAITOY8RDv7ogxLsTgYeBA",
@@ -31,23 +33,6 @@ help_text = """
 
 А и всьо, чо думал я дохрена нейросеть? Не-а
 """
-
-
-class User:
-    name = ""
-    surname = ""
-    age = 0
-    username = ""
-    personal_links = {"": ""}
-
-    def __init__(self, name, surname, age, username):
-        self.name = name
-        self.surname = surname
-        self.age = age
-        self.username = username
-
-    def __str__(self):
-        return self.name + " " + self.surname
 
 
 class Color:
@@ -107,7 +92,7 @@ def split_links_and_name_and_save(message: Message, user: User):
     entities = message.entities
     text = message.text
     for entity in entities:
-        if entity.type == "url":
+        if entity.type == "url" and user is not None:
             offset = entity.offset - (len(message.text) - len(text))
             length = entity.length
             link_name = ""
@@ -123,29 +108,30 @@ def split_links_and_name_and_save(message: Message, user: User):
                 word_list = text.split(" ")
                 link_name = word_list[1]
                 text = text[offset + length + len(word_list[1]) + 1:].strip()
-            if user is None:
-                bot.send_message(message.chat.id,
-                                    "Я тебя не знаю, пройди /reg, потом поговорим (сначала выключи /link)")
-                break
-            else:
-                user.personal_links[link_name.lower()] = link
-                bot.send_message(
-                    chat_id=message.chat.id,
-                    text=f"Добавил значение *{link_name}* для *{message.from_user.username}*, для получения ссылки введи указанное название",
-                    parse_mode=ParseMode.MARKDOWN_V2
-                )
+            user.personal_links[link_name.lower()] = link
+            bot.send_message(
+                chat_id=message.chat.id,
+                text=f"Добавил значение *{link_name}* для *{message.from_user.username}*, для получения ссылки введи указанное название",
+                parse_mode=ParseMode.MARKDOWN_V2
+            )
+        else:
+            bot.send_message(message.chat.id,
+                             "Я тебя не знаю, пройди /reg, потом поговорим (сначала выключи /link)")
+            break
+    if user is not None:
+        save(user)
 
 
 def get_user_by_message(t_user):
     try:
         return filter(lambda x: x.username == t_user.username, user_list).__next__()
     except StopIteration:
-        return User("", "", 0, "")
+        return User("", "", 0, "", {})
 
 
-user_list = list()
+user_list = find_all()
 # user_list.append(User("Вячеслав", "Евтеев", 21, "v4eii"))
-user_list.append(User("Вячеслав", "SD", 21, "vds"))
+# user_list.append(User("Вячеслав", "SD", 21, "vds"))
 
 # {
 #    "content_type":"sticker",

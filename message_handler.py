@@ -2,6 +2,7 @@ import telegram
 import state
 from telebot.types import *
 from util import *
+import mongo_service as ms
 
 
 @bot.message_handler(commands=['start'])
@@ -35,7 +36,10 @@ def fast_register(message: Message):
     if t_user.username == get_user_by_message(t_user).username:
         bot.send_message(message.chat.id, "А ты уже зареган, ничего не знаю")
     else:
-        user_list.append(User(t_user.first_name, t_user.last_name, 0, t_user.username))
+        user = User(t_user.first_name, t_user.last_name, 0, t_user.username, {})
+        user_list.append(user)
+        result = ms.save(user)
+        print(f"inserted id {result.inserted_id}")
         bot.send_message(t_user.id, f"Ладно, давай по-быстренькому, зарегал тебя как {t_user.first_name} {t_user.last_name}")
 
 
@@ -44,6 +48,7 @@ def unreg(message: Message):
     user = get_user_by_message(message.from_user)
     if user.username != "":
         user_list.remove(user)
+        ms.remove(user)
         bot.send_message(message.chat.id, f"Ну и не сильно то хотелось, пока {user.name} {user.surname}")
     else:
         bot.send_message(message.chat.id, f"То что мертво - умереть не может (ты и не зареган)")
